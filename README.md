@@ -1,2 +1,2 @@
 # notebook
-Jupyter notebook example
+Jupyter notebook examples
