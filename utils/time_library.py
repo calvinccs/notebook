@@ -25,11 +25,46 @@ class timelib(object):
         for i in range(1,num_steps):
             t_list.append(t_list[i-1] + t_delta)
 
+        if influxdb:
+            return ['%sT%sZ' %(str(i)[:10], str(i)[11:]) for i in t_list]
         if influxdb == False:
             return t_list
-        if influxdb == True:
-            return ['%sT%sZ' %(str(i)[:10], str(i)[11:]) for i in t_list]
+        
+    def tsrange_list(start, end, step, t_range, influxdb = False):
+        # input 2 time and return a list of intervals range as list of lists
+        t_start = pd.to_datetime(start)
+        t_end = pd.to_datetime(end)
+        t_delta = pd.to_timedelta(step)
+        num_steps = int((t_end - t_start) / t_delta)
+        t_list = [(t_start - pd.to_timedelta(t_range), t_start)]
 
+        for i in range(1,num_steps):
+            t_step = (t_list[i-1][1] + t_delta - pd.to_timedelta(t_range), t_list[i-1][1] + t_delta)
+            t_list.append(t_step)
+    
+        if influxdb:
+            return [('%sT%sZ' %(str(i[0])[:10], str(i[0])[11:]), '%sT%sZ' %(str(i[1])[:10], str(i[1])[11:])) for i in t_list]    
+        else:         
+            return t_list
+
+    def last_halfpast():
+        # return the timestamp of last half past in string, e.g. 4:30
+        now = pd.to_datetime('now')
+        if now.minute > 30:
+            x = (now.minute - 30)*60 + now.second
+        else:
+            x = (now.minute + 30)*60 + now.second
+        return pd.to_datetime('now') - pd.to_timedelta('%ds' %x)
+        
+    def last_hour_same_min(minutes):
+        # return the timestamp of last half past in string, e.g. 4:30
+        now = pd.to_datetime('now')
+        if now.minute > minutes:
+            x = (now.minute - minutes)*60 + now.second
+        else:
+            x = (now.minute + minutes)*60 + now.second
+        return pd.to_datetime('now') - pd.to_timedelta('%ds' %x)
+        
 class calendar(object):
     # create a calendar using pandas
     def __init__(self, year):
@@ -59,7 +94,7 @@ class dst(object):
     def isdst(date):
         # given a date and determine it is within daylight saving or not
         Date = pd.to_datetime(date)
-        ds_zone = timelib.dls(Date.year)
+        ds_zone = dst.dst_ny(Date.year)
         if (Date >= ds_zone[0]) and (Date < ds_zone[1]):
             return True
         else:
@@ -68,7 +103,7 @@ class dst(object):
     def cut_time(date):
         # Since FX market cut time is NY time 5pm, due to daylight saving it will affect the UTC time
         Date = pd.to_datetime(date)
-        ds_zone = timelib.dls(Date.year)
+        ds_zone = dst.dst_ny(Date.year)
         if (Date >= ds_zone[0]) and (Date < ds_zone[1]): # summer daylight saving
             return 'T21:00:00Z'
         else: # without daylight saving
